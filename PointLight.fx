@@ -84,8 +84,8 @@ struct VS_OUTPUT
 	float4 Position : SV_Position;
 	float3 Normal : NORMAL;
 	float2 TextureCoordinate : TEXCOORD;
-	float4 LightDirection : TEXCOORD1;
-	float3 ViewDirection : TEXCOORD2;
+	float3 WorldPosition : TEXCOORD1;
+	float Attenuation : TEXCOORD2;
 };
 
 /***********************Utility Funcs*******************/
@@ -115,13 +115,11 @@ VS_OUTPUT vertex_shader(VS_INPUT IN)
 	OUT.Position = mul(IN.ObjectPosition, WorldViewProjection);
 	OUT.TextureCoordinate = get_corrected_texture_coordinate(IN.TextureCoordinate);
 	OUT.Normal = normalize(mul(float4(IN.Normal, 0), World).xyz);
-	
-	float3 worldPosition = mul(IN.ObjectPosition, World).xyz;
-	float3 lightDirection = LightPosition - worldPosition;
-	OUT.ViewDirection = normalize(CameraPosition - worldPosition);
-	OUT.LightDirection.xyz = normalize(lightDirection);
-	OUT.LightDirection.w = saturate(1.0f - (length(lightDirection) / LightRadius));
-	
+	OUT.WorldPosition = mul(IN.ObjectPosition, World).xyz;
+
+	float3 lightDirection = LightPosition - OUT.WorldPosition;
+	OUT.Attenuation = saturate(1.0f - (length(lightDirection) / LightRadius));	
+
 	return OUT;
 }
 float4 pixel_shader(VS_OUTPUT IN) : SV_Target
@@ -129,8 +127,8 @@ float4 pixel_shader(VS_OUTPUT IN) : SV_Target
 	float4 OUT = (float4)0;
 	
 	float3 normal = normalize(IN.Normal);
-	float3 lightDirection = normalize(IN.LightDirection);
-	float3 viewDirection = normalize(IN.ViewDirection);
+	float3 lightDirection = normalize(LightPosition - IN.WorldPosition);
+	float3 viewDirection = normalize(CameraPosition - IN.WorldPosition);
 	float n_dot_l = dot(lightDirection, normal);
 	float3 halfVector = normalize(lightDirection + viewDirection);
 	float n_dot_h = dot(normal, halfVector);
